@@ -1,12 +1,12 @@
 import logging
-import os
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Depends
 from pydantic import BaseModel
 from dotenv import load_dotenv
 
 from services import get_answer
+from auth import verify_token
 
 load_dotenv()
 
@@ -47,9 +47,9 @@ async def health_check():
 
 
 @app.post("/qa/ask", response_model=AnswerResponse)
-async def ask_question(request: QuestionRequest):
+async def ask_question(request: QuestionRequest, current_user: dict = Depends(verify_token)):
     sanitized_question = request.question.replace("\n", " ").replace("\r", " ")
-    logger.info(f"Received question: {sanitized_question}")
+    logger.info(f"Received question from user {current_user.get('user_id')}: {sanitized_question}")
     try:
         answer = get_answer(request.question)
         return AnswerResponse(question=request.question, answer=answer)
