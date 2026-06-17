@@ -1,8 +1,12 @@
 import logging
+import os
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
+from pydantic import BaseModel
 from dotenv import load_dotenv
+
+from services import get_answer
 
 load_dotenv()
 
@@ -28,6 +32,27 @@ app = FastAPI(
 )
 
 
+class QuestionRequest(BaseModel):
+    question: str
+
+
+class AnswerResponse(BaseModel):
+    question: str
+    answer: str
+
+
 @app.get("/health")
 async def health_check():
     return {"status": "healthy", "service": "qa-service"}
+
+
+@app.post("/qa/ask", response_model=AnswerResponse)
+async def ask_question(request: QuestionRequest):
+    sanitized_question = request.question.replace("\n", " ").replace("\r", " ")
+    logger.info(f"Received question: {sanitized_question}")
+    try:
+        answer = get_answer(request.question)
+        return AnswerResponse(question=request.question, answer=answer)
+    except Exception as e:
+        logger.error(f"Error getting answer: {e}")
+        raise HTTPException(status_code=500, detail="Failed to get answer from LLM")
