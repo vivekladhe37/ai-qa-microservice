@@ -4,11 +4,41 @@ A production-grade, cloud-native AI Q&A system built with microservices architec
 
 ## Architecture
 
-```
-Internet → ALB → Auth Service (FastAPI)
-                → QA Service (FastAPI + Groq LLM)
-                      ↓              ↓
-                 RDS Postgres   ElastiCache Redis
+```mermaid
+graph TB
+    Client([User / Client])
+
+    subgraph AWS Cloud
+        subgraph VPC
+            subgraph Public Subnet
+                ALB[Application Load Balancer]
+            end
+
+            subgraph Private Subnet
+                subgraph ECS Fargate Cluster
+                    AUTH[Auth Service\nFastAPI :8001]
+                    QA[QA Service\nFastAPI :8000]
+                end
+
+                subgraph Databases
+                    AUTHDB[(Auth RDS\nPostgreSQL)]
+                    QADB[(QA RDS\nPostgreSQL)]
+                    REDIS[(ElastiCache\nRedis)]
+                end
+            end
+        end
+    end
+
+    GROQ([Groq LLM API\nexternal])
+
+    Client -->|HTTPS| ALB
+    ALB -->|/auth/*| AUTH
+    ALB -->|/qa/*| QA
+    AUTH --> AUTHDB
+    QA --> QADB
+    QA --> REDIS
+    QA -->|LLM calls| GROQ
+    AUTH -->|issues JWT| QA
 ```
 
 ## Tech Stack
