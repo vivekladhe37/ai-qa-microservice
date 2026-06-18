@@ -1,6 +1,7 @@
 resource "aws_ecr_repository" "auth_service" {
   name                 = "${var.project_name}-auth-service"
   image_tag_mutability = "MUTABLE"
+  force_delete         = true
 
   image_scanning_configuration {
     scan_on_push = true
@@ -15,7 +16,7 @@ resource "aws_ecr_repository" "auth_service" {
 resource "aws_ecr_repository" "qa_service" {
   name                 = "${var.project_name}-qa-service"
   image_tag_mutability = "MUTABLE"
-
+  force_delete         = true
   image_scanning_configuration {
     scan_on_push = true
   }
