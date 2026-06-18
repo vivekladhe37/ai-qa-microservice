@@ -5,6 +5,7 @@ from fastapi import FastAPI, HTTPException, Depends
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from dotenv import load_dotenv
+from pydantic import BaseModel, ConfigDict
 
 from database import get_db, engine
 from models import Base, Question
@@ -45,15 +46,14 @@ class AnswerResponse(BaseModel):
     question: str
     answer: str
 
-
 class HistoryItem(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: int
     question_text: str
     answer_text: str
     created_at: str
 
-    class Config:
-        from_attributes = True
 
 
 @app.get("/health")

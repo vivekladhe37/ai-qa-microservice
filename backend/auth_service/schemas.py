@@ -1,4 +1,5 @@
 from pydantic import BaseModel, EmailStr, field_validator
+from pydantic import BaseModel, EmailStr, field_validator, ConfigDict
 
 
 class SignupRequest(BaseModel):
@@ -24,10 +25,8 @@ class TokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
 
-
 class UserResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    
     id: int
     email: str
-
-    class Config:
-        from_attributes = True
