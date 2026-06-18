@@ -1,0 +1,108 @@
+name: CI Pipeline
+
+on:
+  push:
+    branches: [develop]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test-auth-service:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        working-directory: backend/auth_service
+        run: pip install -r requirements.txt
+
+      - name: Run tests
+        working-directory: backend/auth_service
+        env:
+          JWT_SECRET_KEY: test_secret_key
+          JWT_ALGORITHM: HS256
+          JWT_EXPIRY_MINUTES: 30
+          DATABASE_URL: sqlite:///./test.db
+        run: pytest tests/ -v
+
+  test-qa-service:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        working-directory: backend/qa_service
+        run: pip install -r requirements.txt
+
+      - name: Run tests
+        working-directory: backend/qa_service
+        env:
+          JWT_SECRET_KEY: test_secret_key
+          JWT_ALGORITHM: HS256
+          GROQ_API_KEY: test_groq_key
+          REDIS_URL: redis://localhost:6379
+          DATABASE_URL: sqlite:///./test.db
+        run: pytest tests/ -v
+
+  build-and-push:
+    runs-on: ubuntu-latest
+    needs: [test-auth-service, test-qa-service]
+    if: github.ref == 'refs/heads/develop'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and push auth-service
+        env:
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          docker build -t ${{ secrets.ECR_AUTH_REPO }}:$IMAGE_TAG -t ${{ secrets.ECR_AUTH_REPO }}:latest ./backend/auth_service
+          docker push ${{ secrets.ECR_AUTH_REPO }}:$IMAGE_TAG
+          docker push ${{ secrets.ECR_AUTH_REPO }}:latest
+
+      - name: Build and push qa-service
+        env:
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          docker build -t ${{ secrets.ECR_QA_REPO }}:$IMAGE_TAG -t ${{ secrets.ECR_QA_REPO }}:latest ./backend/qa_service
+          docker push ${{ secrets.ECR_QA_REPO }}:$IMAGE_TAG
+          docker push ${{ secrets.ECR_QA_REPO }}:latest
+
+      - name: Deploy to ECS - auth-service
+        run: |
+          aws ecs update-service \
+            --cluster ${{ secrets.ECS_CLUSTER }} \
+            --service ai-qa-microservice-auth-service \
+            --force-new-deployment \
+            --region ${{ secrets.AWS_REGION }}
+
+      - name: Deploy to ECS - qa-service
+        run: |
+          aws ecs update-service \
+            --cluster ${{ secrets.ECS_CLUSTER }} \
+            --service ai-qa-microservice-qa-service \
+            --force-new-deployment \
+            --region ${{ secrets.AWS_REGION }}
