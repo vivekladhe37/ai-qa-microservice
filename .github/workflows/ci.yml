@@ -77,16 +77,32 @@ jobs:
 
       - name: Build and push auth-service
         env:
-          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           IMAGE_TAG: ${{ github.sha }}
         run: |
-          docker build -t $ECR_REGISTRY/auth-service:$IMAGE_TAG ./backend/auth_service
-          docker push $ECR_REGISTRY/auth-service:$IMAGE_TAG
+          docker build -t ${{ secrets.ECR_AUTH_REPO }}:$IMAGE_TAG -t ${{ secrets.ECR_AUTH_REPO }}:latest ./backend/auth_service
+          docker push ${{ secrets.ECR_AUTH_REPO }}:$IMAGE_TAG
+          docker push ${{ secrets.ECR_AUTH_REPO }}:latest
 
       - name: Build and push qa-service
         env:
-          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           IMAGE_TAG: ${{ github.sha }}
         run: |
-          docker build -t $ECR_REGISTRY/qa-service:$IMAGE_TAG ./backend/qa_service
-          docker push $ECR_REGISTRY/qa-service:$IMAGE_TAG
+          docker build -t ${{ secrets.ECR_QA_REPO }}:$IMAGE_TAG -t ${{ secrets.ECR_QA_REPO }}:latest ./backend/qa_service
+          docker push ${{ secrets.ECR_QA_REPO }}:$IMAGE_TAG
+          docker push ${{ secrets.ECR_QA_REPO }}:latest
+
+      - name: Deploy to ECS - auth-service
+        run: |
+          aws ecs update-service \
+            --cluster ${{ secrets.ECS_CLUSTER }} \
+            --service ai-qa-microservice-auth-service \
+            --force-new-deployment \
+            --region ${{ secrets.AWS_REGION }}
+
+      - name: Deploy to ECS - qa-service
+        run: |
+          aws ecs update-service \
+            --cluster ${{ secrets.ECS_CLUSTER }} \
+            --service ai-qa-microservice-qa-service \
+            --force-new-deployment \
+            --region ${{ secrets.AWS_REGION }}
