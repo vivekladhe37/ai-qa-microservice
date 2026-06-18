@@ -1,11 +1,11 @@
 import logging
+import os
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException, Depends
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, Session
 from dotenv import load_dotenv
-import os
 
 from models import Base
 from schemas import SignupRequest, LoginRequest, TokenResponse, UserResponse
@@ -19,9 +19,13 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-DATABASE_URL = os.getenv("DATABASE_URL")
-engine = create_engine(DATABASE_URL)
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+def get_engine():
+    return create_engine(os.getenv("DATABASE_URL"))
+
+
+engine = None
+SessionLocal = None
 
 
 def get_db():
@@ -34,6 +38,9 @@ def get_db():
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    global engine, SessionLocal
+    engine = get_engine()
+    SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
     logger.info("Starting Auth Service...")
     Base.metadata.create_all(bind=engine)
     logger.info("Database tables created/verified")
