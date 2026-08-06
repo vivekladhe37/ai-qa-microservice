@@ -1,0 +1,56 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: qa-service
+  namespace: ai-qa
+  labels:
+    app: qa-service
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: qa-service
+  template:
+    metadata:
+      labels:
+        app: qa-service
+    spec:
+      containers:
+        - name: qa-service
+          image: qa-service:latest
+          ports:
+            - containerPort: 8000
+          envFrom:
+            - secretRef:
+                name: qa-service-secrets
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+            limits:
+              memory: "256Mi"
+              cpu: "200m"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 10
+            periodSeconds: 15
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: qa-service
+  namespace: ai-qa
+spec:
+  selector:
+    app: qa-service
+  ports:
+    - port: 8000
+      targetPort: 8000
