@@ -1,0 +1,95 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: auth-postgres
+  namespace: ai-qa
+  labels:
+    app: auth-postgres
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: auth-postgres
+  template:
+    metadata:
+      labels:
+        app: auth-postgres
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:15
+          ports:
+            - containerPort: 5432
+          env:
+            - name: POSTGRES_DB
+              value: authdb
+            - name: POSTGRES_USER
+              value: postgres
+            - name: POSTGRES_PASSWORD
+              value: password
+          volumeMounts:
+            - name: auth-postgres-storage
+              mountPath: /var/lib/postgresql/data
+      volumes:
+        - name: auth-postgres-storage
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: auth-postgres
+  namespace: ai-qa
+spec:
+  selector:
+    app: auth-postgres
+  ports:
+    - port: 5432
+      targetPort: 5432
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: qa-postgres
+  namespace: ai-qa
+  labels:
+    app: qa-postgres
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: qa-postgres
+  template:
+    metadata:
+      labels:
+        app: qa-postgres
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:15
+          ports:
+            - containerPort: 5432
+          env:
+            - name: POSTGRES_DB
+              value: qadb
+            - name: POSTGRES_USER
+              value: postgres
+            - name: POSTGRES_PASSWORD
+              value: password
+          volumeMounts:
+            - name: qa-postgres-storage
+              mountPath: /var/lib/postgresql/data
+      volumes:
+        - name: qa-postgres-storage
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: qa-postgres
+  namespace: ai-qa
+spec:
+  selector:
+    app: qa-postgres
+  ports:
+    - port: 5432
+      targetPort: 5432
